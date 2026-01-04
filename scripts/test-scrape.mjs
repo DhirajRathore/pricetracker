@@ -27,9 +27,18 @@ async function scrapeProduct(url) {
     console.log(`\n🔍 Scraping: ${url}\n`);
     const result = await firecrawl.scrapeUrl(url, {
       formats: ["extract"],
+      onlyMainContent: false,
       extract: {
-        prompt:
-          "Extract the product name as 'productName', current price as a number as 'currentPrice', currency code (USD, EUR, INR, etc) as 'currencyCode', and product image URL as 'productImageUrl' if available",
+        prompt: `You are extracting product data from an e-commerce website.
+        
+Extract and return ONLY valid JSON with these fields:
+- productName: (string) The product title/name. Look in h1, title, or "product-title" elements. REQUIRED, cannot be empty
+- currentPrice: (number) JUST the numeric price value. Look for large numbers, prices in ₹ or $ symbols. REQUIRED, must be > 0. If you see "₹1,299" extract as 1299
+- currencyCode: (string) The currency (INR for ₹, USD for $, EUR for €, GBP for £). REQUIRED
+- productImageUrl: (string, optional) Main product image URL
+
+If any required field is empty or 0, the extraction failed.
+Return valid JSON only.`,
         schema: {
           type: "object",
           properties: {
@@ -38,7 +47,7 @@ async function scrapeProduct(url) {
             currencyCode: { type: "string" },
             productImageUrl: { type: "string" },
           },
-          required: ["productName", "currentPrice"],
+          required: ["productName", "currentPrice", "currencyCode"],
         },
       },
     });
