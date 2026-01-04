@@ -27,8 +27,6 @@ export async function POST(request) {
         const {data: products,error:productsError} =await supabase.from("products").select("*");
          if (productsError) throw productsError;
 
-    console.log(`Found ${products.length} products to check`);
-
     const results = {
       total: products.length,
       updated: 0,
@@ -70,21 +68,25 @@ export async function POST(request) {
           results.priceChanges++;
 
           if (newPrice < oldPrice) {
-            const {
-              data: { user },
-            } = await supabase.auth.admin.getUserById(product.user_id);
+            try {
+              const {
+                data: { user },
+              } = await supabase.auth.admin.getUserById(product.user_id);
 
-            if (user?.email) {
-              const emailResult = await sendPriceDropAlert(
-                user.email,
-                product,
-                oldPrice,
-                newPrice
-              );
+              if (user?.email) {
+                const emailResult = await sendPriceDropAlert(
+                  user.email,
+                  product,
+                  oldPrice,
+                  newPrice
+                );
 
-              if (emailResult.success) {
-                results.alertsSent++;
+                if (emailResult && emailResult.success) {
+                  results.alertsSent++;
+                }
               }
+            } catch (emailError) {
+              console.error(`Error sending email for product id=${product.id}:`, emailError);
             }
           }
         }
