@@ -5,6 +5,41 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+// Clean URLs by removing common tracking parameters from any platform
+function cleanUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    
+    // Common tracking parameters across all e-commerce platforms
+    const trackingParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+      'fbclid', 'gclid', 'msclkid',
+      'ref', 'dib', 'dib_tag', 'keywords', 'qid', 'sprefix', 'sr', 'aref', 'sp_csd', 'psc',
+      'pid', 'lid', 'marketplace', 'q', 'store', 'srno', 'otracker', 'otracker1', 
+      'fm', 'iid', 'ppt', 'ppn', 'ssid', 'qH',
+      'epid', '_trkparms', '_trksid', 'hash',
+      'page', 'sort', 'filter', 'search', 'category', 'variant'
+    ];
+    
+    // Remove all tracking parameters
+    trackingParams.forEach(param => {
+      urlObj.searchParams.delete(param);
+    });
+    
+    // Return cleaned URL without query string if empty
+    const cleanedUrl = urlObj.toString();
+    if (cleanedUrl.includes('?')) {
+      const [baseUrl, query] = cleanedUrl.split('?');
+      return query ? cleanedUrl : baseUrl;
+    }
+    
+    return cleanedUrl;
+  } catch (error) {
+    // If URL parsing fails, return original URL
+    return url;
+  }
+}
+
 
 export async function signOut() {
     const supabase=await createClient();
@@ -16,11 +51,14 @@ export async function signOut() {
 
 export async function addProduct(formData) {
 
-    const url=formData.get('url');
+    let url=formData.get('url');
 
     if(!url){
         return {error:"URL is required"};
     }
+
+    // Clean URL to remove tracking parameters
+    url = cleanUrl(url);
 
     try {
         const supabase =await createClient();
@@ -119,9 +157,13 @@ export async function getProducts() {
     try {
 
         const supabase =await createClient();
+        
+        const {data:{user}} = await supabase.auth.getUser();
+        if(!user) return [];
 
         const{data,error} =await supabase.from("products")
         .select("*")
+        .eq("user_id",user.id)
         .order("created_at",{ascending:false});
 
         if(error) throw error;
